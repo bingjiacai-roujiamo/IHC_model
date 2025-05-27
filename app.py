@@ -50,15 +50,23 @@ feature_name_mapping = {feature: get_original_feature_name(feature) for feature 
 
 # Function to prepare input data for prediction
 def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt):
+    # Adjust very low values of week12_hbsag
+    week12_hbsag = 0.01 if week12_hbsag <= 0.05 else week12_hbsag
+
     # Calculate derived features
     alt_hbsag_ratio = week12_alt / baseline_hbsag if baseline_hbsag > 0 else 0
     
     # Calculate HBsAg_d1 value
     try:
-        log_diff = np.log10(week12_hbsag - baseline_hbsag) if week12_hbsag > baseline_hbsag else -float('inf')
-        hbsag_d1 = 1 if log_diff >= 1 else 0
+        if week12_hbsag < baseline_hbsag:
+            # caculate log10 down value
+            log_diff = np.log10(baseline_hbsag-week12_hbsag)
+            hbsag_d1 = 1 if log_diff >= 1 else 0
+        else:
+            # when week12 >= baseline return 0
+            hbsag_d1 = 0
     except:
-        hbsag_d1 = 0  # Default to 0 if calculation fails
+        hbsag_d1 = 0   # Default to 0 if calculation fails
     
     # Create input dataframe with all necessary columns
     # First create a dataframe with all possible features
@@ -154,15 +162,16 @@ with st.container():
         baseline_hbsag = st.number_input("Baseline HBsAg (IU/mL)", 
                                          min_value=0.0, 
                                          max_value=25000.0, 
-                                         value=1000.0, 
-                                         step=100.0)
+                                         value=10.0, 
+                                         step=1.0)
     
     with col2:
         week12_hbsag = st.number_input("Week 12 HBsAg (IU/mL)", 
                                        min_value=0.0, 
                                        max_value=25000.0, 
-                                       value=500.0, 
-                                       step=100.0)
+                                       value=10.0, 
+                                       step=1.0)
+        st.caption("ℹ️ Please enter 0.05 if your Week 12 HBsAg value is ≤ 0.05. This tool will adjust the very low values of week12_hbsag to 0.01.")
     
     with col3:
         week12_alt = st.number_input("Week 12 ALT (IU/L)", 
@@ -172,16 +181,23 @@ with st.container():
                                      step=1)
 
 if st.button("Calculate Prediction"):
+    week12_hbsag = 0.01 if week12_hbsag <= 0.05 else week12_hbsag
     # Prepare input data
     input_df, display_df = prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt)
     
     # Calculate derived features for display
     alt_hbsag_ratio = week12_alt / baseline_hbsag if baseline_hbsag > 0 else 0
+    # Calculate HBsAg_d1 value
     try:
-        log_diff = np.log10(week12_hbsag - baseline_hbsag) if week12_hbsag > baseline_hbsag else -float('inf')
-        hbsag_d1 = "Yes" if log_diff >= 1 else "No"
+        if week12_hbsag < baseline_hbsag:
+            # caculate log10 down value
+            log_diff = np.log10(baseline_hbsag-week12_hbsag)
+            hbsag_d1 = "Yes" if log_diff >= 1 else "No"
+        else:
+            # when week12 >= baseline return No
+            hbsag_d1 = "No"
     except:
-        hbsag_d1 = "No"
+        hbsag_d1 = "No"  
     
     # Make prediction
     prediction = predict(input_df)
@@ -205,7 +221,7 @@ if st.button("Calculate Prediction"):
         # Create feature table
         st.subheader("Calculated Features")
         feature_data = {
-            "Feature": ["Baseline HBsAg", "Week 12 HBsAg", "Week 12 ALT/Baseline HBsAg Ratio", "log10(Week 12 HBsAg - Baseline HBsAg) ≥ 1"],
+            "Feature": ["Baseline HBsAg", "Week 12 HBsAg", "Week 12 ALT/Baseline HBsAg Ratio", "log10(Baseline HBsAg - Week 12 HBsAg) ≥ 1"],
             "Value": [f"{baseline_hbsag:.2f} IU/mL", f"{week12_hbsag:.2f} IU/mL", f"{alt_hbsag_ratio:.4f}", hbsag_d1]
         }
         st.table(pd.DataFrame(feature_data))
