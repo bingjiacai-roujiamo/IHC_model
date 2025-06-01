@@ -54,7 +54,7 @@ def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt):
     week12_hbsag = 0.01 if week12_hbsag <= 0.05 else week12_hbsag
 
     # Calculate derived features
-    alt_hbsag_ratio = week12_alt / baseline_hbsag if baseline_hbsag > 0 else 0
+    alt_hbsag_ratio = week12_alt / week12_hbsag if week12_hbsag > 0 else 0
     
     # Calculate HBsAg_d1 value
     try:
@@ -72,7 +72,6 @@ def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt):
     # First create a dataframe with all possible features
     input_df = pd.DataFrame({
         'HBsAg': [baseline_hbsag],
-        'HBsAg_12w': [week12_hbsag],
         'ALT_12w_HBsAg': [alt_hbsag_ratio],
         'HBsAg_d1_1': [hbsag_d1]
     })
@@ -186,7 +185,7 @@ if st.button("Calculate Prediction"):
     input_df, display_df = prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt)
     
     # Calculate derived features for display
-    alt_hbsag_ratio = week12_alt / baseline_hbsag if baseline_hbsag > 0 else 0
+    alt_hbsag_ratio = week12_alt / week12_hbsag if week12_hbsag > 0 else 0
     # Calculate HBsAg_d1 value
     try:
         if week12_hbsag < baseline_hbsag:
@@ -221,7 +220,7 @@ if st.button("Calculate Prediction"):
         # Create feature table
         st.subheader("Calculated Features")
         feature_data = {
-            "Feature": ["Baseline HBsAg", "Week 12 HBsAg", "Week 12 ALT/Baseline HBsAg Ratio", "log10(Baseline HBsAg - Week 12 HBsAg) ≥ 1"],
+            "Feature": ["Baseline HBsAg", "Week 12 HBsAg", "Week 12 ALT/week12_hbsag Ratio", "log10(Baseline HBsAg - Week 12 HBsAg) ≥ 1"],
             "Value": [f"{baseline_hbsag:.2f} IU/mL", f"{week12_hbsag:.2f} IU/mL", f"{alt_hbsag_ratio:.4f}", hbsag_d1]
         }
         st.table(pd.DataFrame(feature_data))
