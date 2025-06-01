@@ -72,7 +72,7 @@ def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt):
     # First create a dataframe with all possible features
     input_df = pd.DataFrame({
         'HBsAg': [baseline_hbsag],
-        'ALT_12w_HBsAg': [alt_hbsag_ratio],
+        'ALT12w_HBsAg12w': [alt_hbsag_ratio],
         'HBsAg_d1_1': [hbsag_d1]
     })
     
