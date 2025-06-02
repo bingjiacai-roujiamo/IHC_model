@@ -73,7 +73,7 @@ def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt):
     input_df = pd.DataFrame({
         'HBsAg': [baseline_hbsag],
         'ALT12w_HBsAg12w': [alt_hbsag_ratio],
-        'HBsAg_d1_1': [hbsag_d1]
+        'HBsAgd1_1': [hbsag_d1]
     })
     
     # Select only the features used in the model
