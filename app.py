@@ -49,32 +49,31 @@ def get_original_feature_name(feature_name):
 feature_name_mapping = {feature: get_original_feature_name(feature) for feature in final_selected_features}
 
 # Function to prepare input data for prediction
-def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt, week24_hbsag):
-    # Adjust very low values of week12_hbsag
+def prepare_input_data(baseline_hbsag, week12_hbsag, week24_hbsag, week12_alt):
+    # Adjust very low values of week12_hbsag and week24_hbsag
     week12_hbsag = 0.01 if week12_hbsag <= 0.05 else week12_hbsag
     week24_hbsag = 0.01 if week24_hbsag <= 0.05 else week24_hbsag
-    
+
     # Calculate derived features
     alt_hbsag_ratio = week12_alt / week12_hbsag if week12_hbsag > 0 else 0
     
-    # Calculate HBsAg_d1 value
+    # Calculate HBsAg24wdecline_1 value
     try:
         if week24_hbsag < baseline_hbsag:
-            # caculate log10 down value
-            log_diff = np.log10(baseline_hbsag / week24_hbsag)
-            hbsag_d1 = 1 if log_diff >= 1 else 0
+            # calculate log10 decline value
+            log_ratio = np.log10(baseline_hbsag / week24_hbsag)
+            hbsag24wdecline_1 = 1 if log_ratio >= 1 else 0
         else:
             # when week24 >= baseline return 0
-            hbsag_d1 = 0
+            hbsag24wdecline_1 = 0
     except:
-        hbsag_d1 = 0   # Default to 0 if calculation fails
+        hbsag24wdecline_1 = 0   # Default to 0 if calculation fails
     
     # Create input dataframe with all necessary columns
-    # First create a dataframe with all possible features
     input_df = pd.DataFrame({
         'HBsAgbaseline': [baseline_hbsag],
         'ALT12w_HBsAg12w': [alt_hbsag_ratio],
-        'HBsAg24wdecline_1': [hbsag_d1]
+        'HBsAg24wdecline_1': [hbsag24wdecline_1]
     })
     
     # Select only the features used in the model
@@ -152,7 +151,7 @@ def generate_shap_explanation(input_df, display_df):
 
 # UI
 st.title("Hepatitis B Surface Antigen Clearance Prediction")
-st.write("This tool predicts the probability of hepatitis B surface antigen clearance at 48 weeks based on baseline and 12-week measurements.")
+st.write("This tool predicts the probability of hepatitis B surface antigen clearance at 48 weeks based on baseline, 12-week, and 24-week measurements.")
 
 with st.container():
     st.subheader("Patient Measurements")
@@ -171,15 +170,15 @@ with st.container():
                                        max_value=25000.0, 
                                        value=10.0, 
                                        step=1.0)
-        st.caption("ℹ️ Please enter 0.05 if your Week 12 HBsAg value is ≤ 0.05. This tool will adjust the very low values of week12_hbsag to 0.01.")
-
+        st.caption("ℹ️ Please enter 0.05 if your Week 12 HBsAg value is ≤ 0.05. This tool will adjust the very low values to 0.01.")
+    
     with col3:
         week24_hbsag = st.number_input("Week 24 HBsAg (IU/mL)", 
                                        min_value=0.0, 
                                        max_value=25000.0, 
                                        value=10.0, 
                                        step=1.0)
-        st.caption("ℹ️ Please enter 0.05 if your Week 12 HBsAg value is ≤ 0.05. This tool will adjust the very low values of week24_hbsag to 0.01.")
+        st.caption("ℹ️ Please enter 0.05 if your Week 24 HBsAg value is ≤ 0.05. This tool will adjust the very low values to 0.01.")
     
     with col4:
         week12_alt = st.number_input("Week 12 ALT (IU/L)", 
@@ -192,21 +191,21 @@ if st.button("Calculate Prediction"):
     week12_hbsag = 0.01 if week12_hbsag <= 0.05 else week12_hbsag
     week24_hbsag = 0.01 if week24_hbsag <= 0.05 else week24_hbsag
     # Prepare input data
-    input_df, display_df = prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt, week24_hbsag)
+    input_df, display_df = prepare_input_data(baseline_hbsag, week12_hbsag, week24_hbsag, week12_alt)
     
     # Calculate derived features for display
     alt_hbsag_ratio = week12_alt / week12_hbsag if week12_hbsag > 0 else 0
-    # Calculate HBsAg_d1 value
+    # Calculate HBsAg24wdecline_1 value
     try:
         if week24_hbsag < baseline_hbsag:
-            # caculate log10 down value
-            log_diff = np.log10(baseline_hbsag/week24_hbsag)
-            hbsag_d1 = "Yes" if log_diff >= 1 else "No"
+            # calculate log10 decline value
+            log_ratio = np.log10(baseline_hbsag / week24_hbsag)
+            hbsag24wdecline_1 = "Yes" if log_ratio >= 1 else "No"
         else:
             # when week24 >= baseline return No
-            hbsag_d1 = "No"
+            hbsag24wdecline_1 = "No"
     except:
-        hbsag_d1 = "No"  
+        hbsag24wdecline_1 = "No"  
     
     # Make prediction
     prediction = predict(input_df)
@@ -230,8 +229,8 @@ if st.button("Calculate Prediction"):
         # Create feature table
         st.subheader("Calculated Features")
         feature_data = {
-            "Feature": ["Baseline HBsAg", "Week 12 HBsAg", "Week 12 ALT/week12_hbsag Ratio", "log10(Baseline HBsAg / Week 24 HBsAg) ≥ 1"],
-            "Value": [f"{baseline_hbsag:.2f} IU/mL", f"{week12_hbsag:.2f} IU/mL", f"{alt_hbsag_ratio:.4f}", hbsag_d1]
+            "Feature": ["Baseline HBsAg", "Week 12 HBsAg", "Week 24 HBsAg", "Week 12 ALT/Week 12 HBsAg Ratio", "log10(Baseline HBsAg/Week 24 HBsAg) ≥ 1"],
+            "Value": [f"{baseline_hbsag:.2f} IU/mL", f"{week12_hbsag:.2f} IU/mL", f"{week24_hbsag:.2f} IU/mL", f"{alt_hbsag_ratio:.4f}", hbsag24wdecline_1]
         }
         st.table(pd.DataFrame(feature_data))
     
@@ -254,5 +253,3 @@ if st.button("Calculate Prediction"):
 # Footer
 st.markdown("---")
 st.caption("© 2025 - HBV Clearance Prediction Tool")
-
-
