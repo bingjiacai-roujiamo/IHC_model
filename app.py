@@ -156,7 +156,7 @@ st.write("This tool predicts the probability of hepatitis B surface antigen clea
 
 with st.container():
     st.subheader("Patient Measurements")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         baseline_hbsag = st.number_input("Baseline HBsAg (IU/mL)", 
@@ -254,4 +254,5 @@ if st.button("Calculate Prediction"):
 # Footer
 st.markdown("---")
 st.caption("© 2025 - HBV Clearance Prediction Tool")
+
 
