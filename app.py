@@ -7,6 +7,7 @@ import shap
 import os
 import base64
 from io import BytesIO
+import lightgbm as lgb
 
 # 页面配置
 st.set_page_config(
@@ -144,3 +145,4 @@ if st.button("Predict"):
 
 st.markdown("---")
 st.caption("© 2025 - HBV Clearance Prediction Tool")
+
