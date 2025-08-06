@@ -61,7 +61,7 @@ def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt, week24_hbsag):
 
 # 模型预测
 def predict(input_df):
-    return lgb_model.predict_proba(input_df)[0, 1]
+    return lgb_model.predict(input_df)[1]
 
 # SHAP解释图
 def generate_shap_explanation(input_df, display_df):
@@ -145,5 +145,6 @@ if st.button("Predict"):
 
 st.markdown("---")
 st.caption("© 2025 - HBV Clearance Prediction Tool")
+
 
 
