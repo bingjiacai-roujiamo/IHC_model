@@ -21,16 +21,16 @@ def load_model_and_preprocessors():
     model_dir = "model"
     
     # Load model and preprocessing objects
-    rf_model = joblib.load(os.path.join(model_dir, "RF_model.pkl"))
+    lgb_model = joblib.load(os.path.join(model_dir, "LGB_model.pkl"))
     scaler = joblib.load(os.path.join(model_dir, "scaler.pkl"))
     final_selected_features = joblib.load(os.path.join(model_dir, "final_selected_features.pkl"))
     numeric_features = joblib.load(os.path.join(model_dir, "numeric_features.pkl"))
     categorical_features = joblib.load(os.path.join(model_dir, "categorical_features.pkl"))
     
-    return rf_model, scaler, final_selected_features, numeric_features, categorical_features
+    return lgb_model, scaler, final_selected_features, numeric_features, categorical_features
 
 # Load model and preprocessors
-rf_model, scaler, final_selected_features, numeric_features, categorical_features = load_model_and_preprocessors()
+lgb_model, scaler, final_selected_features, numeric_features, categorical_features = load_model_and_preprocessors()
 
 # Helper function to create feature name mapping
 def get_original_feature_name(feature_name):
@@ -49,21 +49,22 @@ def get_original_feature_name(feature_name):
 feature_name_mapping = {feature: get_original_feature_name(feature) for feature in final_selected_features}
 
 # Function to prepare input data for prediction
-def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt):
+def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt, week24_hbsag):
     # Adjust very low values of week12_hbsag
     week12_hbsag = 0.01 if week12_hbsag <= 0.05 else week12_hbsag
-
+    week24_hbsag = 0.01 if week24_hbsag <= 0.05 else week24_hbsag
+    
     # Calculate derived features
     alt_hbsag_ratio = week12_alt / week12_hbsag if week12_hbsag > 0 else 0
     
     # Calculate HBsAg_d1 value
     try:
-        if week12_hbsag < baseline_hbsag:
+        if week24_hbsag < baseline_hbsag:
             # caculate log10 down value
-            log_diff = np.log10(baseline_hbsag-week12_hbsag)
+            log_diff = np.log10(baseline_hbsag / week24_hbsag)
             hbsag_d1 = 1 if log_diff >= 1 else 0
         else:
-            # when week12 >= baseline return 0
+            # when week24 >= baseline return 0
             hbsag_d1 = 0
     except:
         hbsag_d1 = 0   # Default to 0 if calculation fails
@@ -71,9 +72,9 @@ def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt):
     # Create input dataframe with all necessary columns
     # First create a dataframe with all possible features
     input_df = pd.DataFrame({
-        'HBsAg': [baseline_hbsag],
+        'HBsAgbaseline': [baseline_hbsag],
         'ALT12w_HBsAg12w': [alt_hbsag_ratio],
-        'HBsAgd1_1': [hbsag_d1]
+        'HBsAg24wdecline_1': [hbsag_d1]
     })
     
     # Select only the features used in the model
@@ -109,13 +110,13 @@ def prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt):
 # Function to make prediction
 def predict(input_df):
     # Get prediction probability
-    pred_proba = rf_model.predict_proba(input_df)[0, 1]
+    pred_proba = lgb_model.predict_proba(input_df)[0, 1]
     return pred_proba
 
 # Function to generate SHAP explanation
 def generate_shap_explanation(input_df, display_df):
     # Create the explainer
-    explainer = shap.TreeExplainer(rf_model)
+    explainer = shap.TreeExplainer(lgb_model)
     
     # Calculate SHAP values
     shap_values = explainer(input_df)
@@ -171,8 +172,16 @@ with st.container():
                                        value=10.0, 
                                        step=1.0)
         st.caption("ℹ️ Please enter 0.05 if your Week 12 HBsAg value is ≤ 0.05. This tool will adjust the very low values of week12_hbsag to 0.01.")
-    
+
     with col3:
+        week24_hbsag = st.number_input("Week 24 HBsAg (IU/mL)", 
+                                       min_value=0.0, 
+                                       max_value=25000.0, 
+                                       value=10.0, 
+                                       step=1.0)
+        st.caption("ℹ️ Please enter 0.05 if your Week 12 HBsAg value is ≤ 0.05. This tool will adjust the very low values of week24_hbsag to 0.01.")
+    
+    with col4:
         week12_alt = st.number_input("Week 12 ALT (IU/L)", 
                                      min_value=0, 
                                      max_value=5000, 
@@ -181,19 +190,20 @@ with st.container():
 
 if st.button("Calculate Prediction"):
     week12_hbsag = 0.01 if week12_hbsag <= 0.05 else week12_hbsag
+    week24_hbsag = 0.01 if week24_hbsag <= 0.05 else week24_hbsag
     # Prepare input data
-    input_df, display_df = prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt)
+    input_df, display_df = prepare_input_data(baseline_hbsag, week12_hbsag, week12_alt, week24_hbsag)
     
     # Calculate derived features for display
     alt_hbsag_ratio = week12_alt / week12_hbsag if week12_hbsag > 0 else 0
     # Calculate HBsAg_d1 value
     try:
-        if week12_hbsag < baseline_hbsag:
+        if week24_hbsag < baseline_hbsag:
             # caculate log10 down value
-            log_diff = np.log10(baseline_hbsag-week12_hbsag)
+            log_diff = np.log10(baseline_hbsag/week24_hbsag)
             hbsag_d1 = "Yes" if log_diff >= 1 else "No"
         else:
-            # when week12 >= baseline return No
+            # when week24 >= baseline return No
             hbsag_d1 = "No"
     except:
         hbsag_d1 = "No"  
@@ -220,7 +230,7 @@ if st.button("Calculate Prediction"):
         # Create feature table
         st.subheader("Calculated Features")
         feature_data = {
-            "Feature": ["Baseline HBsAg", "Week 12 HBsAg", "Week 12 ALT/week12_hbsag Ratio", "log10(Baseline HBsAg - Week 12 HBsAg) ≥ 1"],
+            "Feature": ["Baseline HBsAg", "Week 12 HBsAg", "Week 12 ALT/week12_hbsag Ratio", "log10(Baseline HBsAg / Week 24 HBsAg) ≥ 1"],
             "Value": [f"{baseline_hbsag:.2f} IU/mL", f"{week12_hbsag:.2f} IU/mL", f"{alt_hbsag_ratio:.4f}", hbsag_d1]
         }
         st.table(pd.DataFrame(feature_data))
@@ -244,3 +254,4 @@ if st.button("Calculate Prediction"):
 # Footer
 st.markdown("---")
 st.caption("© 2025 - HBV Clearance Prediction Tool")
+
