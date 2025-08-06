@@ -114,8 +114,8 @@ def generate_shap_explanation(input_df, display_df):
     
     # Create SHAP explanation object for visualization
     example_shap_values = shap.Explanation(
-        values=shap_values.values[0, :, 1],
-        base_values=explainer.expected_value[1],
+        values=shap_values.values[0, :],
+        base_values=explainer.expected_value,
         data=display_values,
         feature_names=feature_names
     )
@@ -229,3 +229,4 @@ if st.button("Calculate Prediction"):
 # Footer
 st.markdown("---")
 st.caption("© 2025 - HBV Clearance Prediction Tool")
+
